@@ -63,6 +63,7 @@
   .game-wrap {
     position: relative;
     z-index: 1;
+    display: none; /* hidden until game starts */
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -1270,8 +1271,9 @@ preloadImages().then(function() {
 });
 
 btnStartEl.addEventListener('click', function() {
-  // Hide start screen
+  // Hide start screen, show game
   startOverlayEl.classList.add('hidden');
+  gameWrap.style.display = '';
   // Init game and play music
   initGame();
   startBGM();
