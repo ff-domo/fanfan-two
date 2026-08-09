@@ -18,6 +18,10 @@
     overflow: hidden;
     padding: 10px;
     background: #0a0a1a;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
   }
 
   /* ── Canvas starfield ── */
@@ -135,6 +139,7 @@
     gap: 4px;
     position: relative;
     border-radius: 14px;
+    touch-action: manipulation;
   }
 
   /* ── Cells ── */
@@ -148,6 +153,7 @@
     transition: transform 0.18s cubic-bezier(0.34,1.56,0.64,1), border-color 0.18s, box-shadow 0.18s, opacity 0.3s;
     position: relative;
     background: rgba(0,0,0,0.2);
+    will-change: transform, opacity;
   }
   .cell::after {
     content: '';
@@ -357,6 +363,41 @@
   .overlay-card .final-stats { font-size: 0.95rem; color: rgba(255,255,255,0.55); margin-bottom: 24px; }
   .overlay-card .btn { font-size: 1.1rem; padding: 14px 40px; }
 
+  /* ── Loading overlay ── */
+  .loading-overlay {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: #0a0a1a;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 500;
+    transition: opacity 0.4s ease;
+  }
+  .loading-overlay.hidden { opacity: 0; pointer-events: none; }
+  .loading-spinner {
+    width: 60px; height: 60px;
+    border: 3px solid rgba(255,255,255,0.1);
+    border-top-color: #ffd700;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-text {
+    margin-top: 20px;
+    color: rgba(255,255,255,0.6);
+    font-size: 1rem;
+    letter-spacing: 2px;
+  }
+
+  /* ── Swap slide animation ── */
+  .cell.swap-anim {
+    z-index: 10;
+    transition: transform 0.22s cubic-bezier(0.25,0.46,0.45,0.94);
+  }
+
   /* ── Responsive ── */
   @media (max-width: 700px) {
     #board { grid-template-columns: repeat(8, 40px); grid-template-rows: repeat(8, 40px); gap: 2px; }
@@ -372,6 +413,11 @@
 </style>
 </head>
 <body>
+
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-spinner"></div>
+  <div class="loading-text">加载中...</div>
+</div>
 
 <canvas id="stars"></canvas>
 <div class="orb orb-1"></div>
@@ -460,6 +506,27 @@ const overlayEl  = document.getElementById('overlay');
 const musicBtn   = document.getElementById('musicBtn');
 
 bestEl.textContent = best;
+
+// ── Image preloading ──
+function preloadImages() {
+  return new Promise(function(resolve) {
+    var loaded = 0;
+    var total = photos.length;
+    if (total === 0) { resolve(); return; }
+    photos.forEach(function(p) {
+      var img = new Image();
+      img.onload = function() {
+        loaded++;
+        if (loaded >= total) resolve();
+      };
+      img.onerror = function() {
+        loaded++;
+        if (loaded >= total) resolve();
+      };
+      img.src = 'photos/' + p;
+    });
+  });
+}
 
 // ── Canvas Starfield ──
 (function initStars() {
@@ -631,6 +698,45 @@ function getCellEl(r, c) {
   return boardEl.children[r * COLS + c];
 }
 
+function updateCell(r, c) {
+  var cell = getCellEl(r, c);
+  if (!cell) return;
+  if (grid[r][c] !== null) {
+    cell.innerHTML = '';
+    var img = document.createElement('img');
+    img.src = 'photos/' + photos[grid[r][c]];
+    img.alt = '照片';
+    img.draggable = false;
+    cell.appendChild(img);
+  } else {
+    cell.innerHTML = '';
+  }
+}
+
+function animateSwap(r1, c1, r2, c2) {
+  return new Promise(function(resolve) {
+    var cell1 = getCellEl(r1, c1);
+    var cell2 = getCellEl(r2, c2);
+    if (!cell1 || !cell2) { resolve(); return; }
+
+    var dx = (c2 - c1) * (CELL_SIZE + GAP);
+    var dy = (r2 - r1) * (CELL_SIZE + GAP);
+
+    cell1.classList.add('swap-anim');
+    cell2.classList.add('swap-anim');
+    cell1.style.transform = 'translate(' + dx + 'px, ' + dy + 'px)';
+    cell2.style.transform = 'translate(' + (-dx) + 'px, ' + (-dy) + 'px)';
+
+    setTimeout(function() {
+      cell1.classList.remove('swap-anim');
+      cell2.classList.remove('swap-anim');
+      cell1.style.transform = '';
+      cell2.style.transform = '';
+      resolve();
+    }, 220);
+  });
+}
+
 // ── Interaction ──
 function onCellClick(r, c) {
   if (locked || grid[r][c] === null) return;
@@ -662,15 +768,24 @@ function onCellClick(r, c) {
 async function trySwap(r1, c1, r2, c2) {
   locked = true;
 
+  // Smooth swap animation
+  await animateSwap(r1, c1, r2, c2);
+
+  // Actually swap in grid
   var tmp = grid[r1][c1]; grid[r1][c1] = grid[r2][c2]; grid[r2][c2] = tmp;
-  renderBoard();
+
+  // Only update the two swapped cells
+  updateCell(r1, c1);
+  updateCell(r2, c2);
 
   var matches = findMatches();
   if (matches.length === 0) {
     playBad();
-    await sleep(180);
+    await animateSwap(r1, c1, r2, c2); // Animate back
+    // Swap back
     tmp = grid[r1][c1]; grid[r1][c1] = grid[r2][c2]; grid[r2][c2] = tmp;
-    renderBoard();
+    updateCell(r1, c1);
+    updateCell(r2, c2);
     gameWrap.classList.add('shake');
     setTimeout(function() { gameWrap.classList.remove('shake'); }, 350);
     locked = false;
@@ -687,6 +802,60 @@ async function trySwap(r1, c1, r2, c2) {
     shuffleBoard();
   }
 }
+
+// ── Touch / Swipe support ──
+(function initTouch() {
+  var touchStartX = 0, touchStartY = 0;
+  var touchStartR = -1, touchStartC = -1;
+
+  boardEl.addEventListener('touchstart', function(e) {
+    if (locked) return;
+    var touch = e.touches[0];
+    touchStartX = touch.clientX;
+    touchStartY = touch.clientY;
+
+    // Find which cell was touched
+    var el = document.elementFromPoint(touchStartX, touchStartY);
+    if (el && el.classList.contains('cell')) {
+      touchStartR = parseInt(el.dataset.row);
+      touchStartC = parseInt(el.dataset.col);
+    } else {
+      touchStartR = -1;
+      touchStartC = -1;
+    }
+  }, { passive: true });
+
+  boardEl.addEventListener('touchend', function(e) {
+    if (locked || touchStartR < 0 || touchStartC < 0) return;
+    var touch = e.changedTouches[0];
+    var dx = touch.clientX - touchStartX;
+    var dy = touch.clientY - touchStartY;
+    var threshold = 20;
+
+    if (Math.abs(dx) < threshold && Math.abs(dy) < threshold) return; // tap, let click handle it
+
+    e.preventDefault();
+    var tr = touchStartR, tc = touchStartC;
+
+    if (Math.abs(dx) > Math.abs(dy)) {
+      tc = dx > 0 ? touchStartC + 1 : touchStartC - 1;
+    } else {
+      tr = dy > 0 ? touchStartR + 1 : touchStartR - 1;
+    }
+
+    if (tr < 0 || tr >= ROWS || tc < 0 || tc >= COLS) return;
+    if (grid[tr][tc] === null) return;
+
+    // Clear any click selection
+    if (selected) {
+      var selEl = getCellEl(selected.r, selected.c);
+      if (selEl) selEl.classList.remove('selected');
+      selected = null;
+    }
+
+    trySwap(touchStartR, touchStartC, tr, tc);
+  }, { passive: false });
+})();
 
 // ── Match detection ──
 function findMatches() {
@@ -892,7 +1061,12 @@ function manualShuffle() {
 }
 
 // ── Start ──
-initGame();
+var loadingOverlayEl = document.getElementById('loadingOverlay');
+preloadImages().then(function() {
+  loadingOverlayEl.classList.add('hidden');
+  setTimeout(function() { loadingOverlayEl.style.display = 'none'; }, 400);
+  initGame();
+});
 </script>
 </body>
 </html>
