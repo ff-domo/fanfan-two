@@ -486,7 +486,7 @@
     <button class="btn btn-restart" onclick="initGame()">🔄 重新开始</button>
     <button class="btn btn-hint" onclick="showHint()">💡 提示</button>
     <button class="btn btn-shuffle" onclick="manualShuffle()">🔀 洗牌</button>
-    <button class="btn btn-music" id="musicBtn" onclick="toggleBGM()">🎵 播放音乐</button>
+    <button class="btn btn-music" id="musicBtn" onclick="toggleMute()">🔊 音乐开</button>
   </div>
 </div>
 
@@ -635,7 +635,7 @@ const playlist = [
   { title: '下完这场雨', src: '后弦 - 下完这场雨.mp3' }
 ];
 let currentTrack = 0;
-let bgmPlaying = false;
+let bgmMuted = false;
 
 function loadTrack(index) {
   currentTrack = index;
@@ -643,32 +643,45 @@ function loadTrack(index) {
   bgm.load();
 }
 
-function toggleBGM() {
-  if (bgmPlaying) {
-    bgm.pause();
-    bgmPlaying = false;
-    musicBtn.textContent = '🎵 播放音乐';
-  } else {
-    if (!bgm.src) loadTrack(0);
-    bgm.play().then(function() {
-      bgmPlaying = true;
-      musicBtn.textContent = '🎵 ' + playlist[currentTrack].title;
-    }).catch(function() {
-      // Browser blocked autoplay
-      bgmPlaying = false;
-      musicBtn.textContent = '🎵 播放音乐';
-    });
-  }
+function startBGM() {
+  loadTrack(0);
+  bgm.volume = 0.5;
+  bgm.play().then(function() {
+    musicBtn.textContent = '🔊 音乐开';
+    bgmMuted = false;
+  }).catch(function() {
+    // Autoplay blocked, will retry on first user touch
+  });
 }
 
+function toggleMute() {
+  bgmMuted = !bgmMuted;
+  bgm.muted = bgmMuted;
+  musicBtn.textContent = bgmMuted ? '🔇 音乐关' : '🔊 音乐开';
+}
+
+// Auto-advance to next track
 bgm.addEventListener('ended', function() {
   currentTrack = (currentTrack + 1) % playlist.length;
   loadTrack(currentTrack);
-  bgm.play().then(function() {
-    bgmPlaying = true;
-    musicBtn.textContent = '🎵 ' + playlist[currentTrack].title;
-  });
+  if (!bgmMuted) bgm.play();
 });
+
+// Retry autoplay on first user interaction if it was blocked
+function tryAutoplayBGM() {
+  if (!bgm.src || bgm.paused) {
+    loadTrack(0);
+    bgm.volume = 0.5;
+    bgm.play().then(function() {
+      bgmMuted = false;
+      musicBtn.textContent = '🔊 音乐开';
+    }).catch(function() {});
+  }
+  document.removeEventListener('click', tryAutoplayBGM);
+  document.removeEventListener('touchstart', tryAutoplayBGM);
+}
+document.addEventListener('click', tryAutoplayBGM, { once: true });
+document.addEventListener('touchstart', tryAutoplayBGM, { once: true });
 
 // ── Init ──
 function initGame() {
@@ -1191,6 +1204,7 @@ preloadImages().then(function() {
   loadingOverlayEl.classList.add('hidden');
   setTimeout(function() { loadingOverlayEl.style.display = 'none'; }, 400);
   initGame();
+  startBGM();
 });
 </script>
 </body>
