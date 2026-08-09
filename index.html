@@ -148,9 +148,9 @@
   }
   #board {
     display: grid;
-    grid-template-columns: repeat(8, 70px);
-    grid-template-rows: repeat(8, 70px);
-    gap: 4px;
+    grid-template-columns: repeat(8, 80px);
+    grid-template-rows: repeat(8, 80px);
+    gap: 5px;
     position: relative;
     border-radius: 14px;
     touch-action: manipulation;
@@ -158,9 +158,9 @@
 
   /* ── Cells ── */
   .cell {
-    width: 70px;
-    height: 70px;
-    border-radius: 12px;
+    width: 80px;
+    height: 80px;
+    border-radius: 14px;
     cursor: pointer;
     overflow: hidden;
     border: 2px solid rgba(255,255,255,0.06);
@@ -413,9 +413,9 @@
   }
 
   /* ── Responsive ── */
-  @media (max-width: 700px) {
-    #board { grid-template-columns: repeat(8, 40px); grid-template-rows: repeat(8, 40px); gap: 2px; }
-    .cell { width: 40px; height: 40px; border-radius: 7px; }
+  @media (max-width: 750px) {
+    #board { grid-template-columns: repeat(8, 42px); grid-template-rows: repeat(8, 42px); gap: 3px; }
+    .cell { width: 42px; height: 42px; border-radius: 8px; }
     h1 { font-size: 1.6rem; }
     .subtitle { font-size: 0.75rem; }
     .stat-card { padding: 6px 12px; min-width: 76px; }
@@ -501,9 +501,9 @@
 
 <script>
 // ── Constants ──
-const ROWS = 8, COLS = 8, TYPES = 6;
-const CELL_SIZE = 70, GAP = 4, PAD = 10;
-const photos = ['photo1.jpg','photo2.jpg','photo3.jpg','photo4.jpg','photo5.jpg','photo6.jpg'];
+const ROWS = 8, COLS = 8, TYPES = 8;
+const CELL_SIZE = 80, GAP = 5, PAD = 12;
+const photos = ['photo1.jpg','photo2.jpg','photo3.jpg','photo4.jpg','photo5.jpg','photo6.jpg','photo7.jpg','photo8.jpg'];
 const particleColors = ['#ffd700','#ff6b6b','#60a5fa','#2ed573','#a55eea','#ff9f43','#17c0eb'];
 
 // ── State ──
@@ -668,6 +668,42 @@ function tick() {
   if (timer <= 10) timerEl.classList.add('urgent');
   else timerEl.classList.remove('urgent');
   if (timer <= 0) endGame();
+}
+
+function updateTimerSpeed() {
+  clearInterval(timerInterval);
+  var speed;
+  if (score >= 4000) speed = 500;
+  else if (score >= 3000) speed = 600;
+  else if (score >= 2000) speed = 700;
+  else if (score >= 1000) speed = 800;
+  else speed = 1000;
+  timerInterval = setInterval(tick, speed);
+}
+
+function getMaxMatchLen(matches) {
+  var set = {};
+  for (var i = 0; i < matches.length; i++) {
+    set[matches[i].r + ',' + matches[i].c] = true;
+  }
+  var maxLen = 0;
+  // Check rows
+  for (var r = 0; r < ROWS; r++) {
+    var run = 0;
+    for (var c = 0; c < COLS; c++) {
+      if (set[r + ',' + c]) { run++; if (run > maxLen) maxLen = run; }
+      else run = 0;
+    }
+  }
+  // Check columns
+  for (var c = 0; c < COLS; c++) {
+    var run = 0;
+    for (var r = 0; r < ROWS; r++) {
+      if (set[r + ',' + c]) { run++; if (run > maxLen) maxLen = run; }
+      else run = 0;
+    }
+  }
+  return maxLen;
 }
 
 function endGame() {
@@ -926,16 +962,50 @@ async function processMatches() {
     totalMatches++;
     if (combo > maxCombo) maxCombo = combo;
     comboEl.textContent = combo;
-    var pts = matches.length * 10 * combo;
+
+    // Calculate max consecutive match length for special effects
+    var maxLen = getMaxMatchLen(matches);
+
+    // Scoring: base points × combo multiplier (combo 1=×1, 2=×2, 3=×3...)
+    var basePts = matches.length * 10;
+    var multiplier = combo;
+    if (maxLen >= 5) multiplier *= 3;
+    else if (maxLen >= 4) multiplier *= 2;
+    var pts = basePts * multiplier;
     score += pts;
     scoreEl.textContent = score;
+
+    // Time bonuses
+    if (maxLen >= 5) {
+      timer += 5;
+      timerEl.textContent = timer;
+      timerEl.classList.remove('urgent');
+      showCombo('🌈 完美消除！+5秒 ×3倍分');
+      gameWrap.classList.add('shake');
+      setTimeout(function() { gameWrap.classList.remove('shake'); }, 350);
+    } else if (maxLen >= 4) {
+      timer += 3;
+      timerEl.textContent = timer;
+      timerEl.classList.remove('urgent');
+      showCombo('✨ 超级消除！+3秒 ×2倍分');
+    } else if (combo >= 3) {
+      timer += 2;
+      timerEl.textContent = timer;
+      timerEl.classList.remove('urgent');
+    }
+
+    // Speed up timer as score increases
+    updateTimerSpeed();
+
     playMatch(combo);
 
     if (combo >= 2) {
       showCombo('🔥 ' + combo + ' 连击！');
       playCombo();
-      gameWrap.classList.add('shake');
-      setTimeout(function() { gameWrap.classList.remove('shake'); }, 350);
+      if (maxLen < 4) {
+        gameWrap.classList.add('shake');
+        setTimeout(function() { gameWrap.classList.remove('shake'); }, 350);
+      }
     }
 
     for (var i = 0; i < matches.length; i++) {
