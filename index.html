@@ -17,19 +17,26 @@
     color: #fff;
     overflow: hidden;
     padding: 10px;
-    background: #0a0a1a;
+    background: transparent;
     user-select: none;
     -webkit-user-select: none;
     -webkit-tap-highlight-color: transparent;
     -webkit-touch-callout: none;
   }
-  body::before {
-    content: '';
+  .bg-photo {
     position: fixed;
     top: 0; left: 0; width: 100%; height: 100%;
     background: url('photos/photo-first.jpg') center/cover no-repeat;
-    opacity: 0.35;
+    opacity: 0.28;
+    z-index: -2;
+    pointer-events: none;
+  }
+  .bg-dark {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: #0a0a1a;
     z-index: -1;
+    pointer-events: none;
   }
 
   /* ── Canvas starfield ── */
@@ -421,6 +428,9 @@
 </style>
 </head>
 <body>
+
+<div class="bg-photo"></div>
+<div class="bg-dark"></div>
 
 <div class="loading-overlay" id="loadingOverlay">
   <div class="loading-spinner"></div>
