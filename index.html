@@ -474,6 +474,31 @@
   .btn-start:active {
     transform: scale(0.96);
   }
+  .btn-start:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    animation: none;
+  }
+  .btn-start:disabled:hover {
+    transform: none;
+  }
+  .start-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 18px;
+    color: rgba(255,255,255,0.7);
+    font-size: 0.95rem;
+    letter-spacing: 1px;
+  }
+  .loading-spinner-start {
+    width: 22px; height: 22px;
+    border: 2px solid rgba(255,255,255,0.15);
+    border-top-color: #ffd700;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
 
   /* ── Swap slide animation ── */
   .cell.swap-anim {
@@ -510,7 +535,11 @@
     <div class="start-emoji">💞</div>
     <h2>平平的专属消消乐</h2>
     <p class="start-desc">交换相邻照片，凑齐3个消除得分</p>
-    <button class="btn-start" id="btnStart">开始游戏</button>
+    <div class="start-loading" id="startLoading">
+      <div class="loading-spinner-start"></div>
+      <span>加载中...</span>
+    </div>
+    <button class="btn-start" id="btnStart" disabled>开始游戏</button>
   </div>
 </div>
 
@@ -1267,9 +1296,16 @@ var btnStartEl = document.getElementById('btnStart');
 loadingOverlayEl.classList.add('hidden');
 loadingOverlayEl.style.display = 'none';
 startOverlayEl.classList.remove('hidden');
-preloadImages(); // load in background, don't wait
+
+var startLoadingEl = document.getElementById('startLoading');
+preloadImages().then(function() {
+  startLoadingEl.style.display = 'none';
+  btnStartEl.disabled = false;
+  btnStartEl.textContent = '开始游戏';
+});
 
 btnStartEl.addEventListener('click', function() {
+  if (btnStartEl.disabled) return;
   startOverlayEl.classList.add('hidden');
   gameWrap.style.display = '';
   initGame();
