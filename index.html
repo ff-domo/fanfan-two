@@ -1263,18 +1263,15 @@ var loadingOverlayEl = document.getElementById('loadingOverlay');
 var startOverlayEl = document.getElementById('startOverlay');
 var btnStartEl = document.getElementById('btnStart');
 
-preloadImages().then(function() {
-  // Hide loading, show start screen
-  loadingOverlayEl.classList.add('hidden');
-  setTimeout(function() { loadingOverlayEl.style.display = 'none'; }, 400);
-  startOverlayEl.classList.remove('hidden');
-});
+// Show start screen immediately, preload images in background
+loadingOverlayEl.classList.add('hidden');
+loadingOverlayEl.style.display = 'none';
+startOverlayEl.classList.remove('hidden');
+preloadImages(); // load in background, don't wait
 
 btnStartEl.addEventListener('click', function() {
-  // Hide start screen, show game
   startOverlayEl.classList.add('hidden');
   gameWrap.style.display = '';
-  // Init game and play music
   initGame();
   startBGM();
 });
