@@ -486,9 +486,11 @@
     <button class="btn btn-restart" onclick="initGame()">🔄 重新开始</button>
     <button class="btn btn-hint" onclick="showHint()">💡 提示</button>
     <button class="btn btn-shuffle" onclick="manualShuffle()">🔀 洗牌</button>
-    <button class="btn btn-music" id="musicBtn" onclick="toggleMusic()">🔊 音效</button>
+    <button class="btn btn-music" id="musicBtn" onclick="toggleBGM()">🎵 播放音乐</button>
   </div>
 </div>
+
+<audio id="bgm" preload="none"></audio>
 
 <div id="overlay" class="overlay hidden">
   <div class="overlay-card">
@@ -624,8 +626,49 @@ function playCombo() {
 }
 function toggleMusic() {
   soundOn = !soundOn;
-  musicBtn.textContent = soundOn ? '🔊 音效' : '🔇 音效';
 }
+
+// ── Background Music ──
+const bgm = document.getElementById('bgm');
+const playlist = [
+  { title: '偏爱', src: '偏爱-张芸京(2).mp3' },
+  { title: '下完这场雨', src: '后弦 - 下完这场雨.mp3' }
+];
+let currentTrack = 0;
+let bgmPlaying = false;
+
+function loadTrack(index) {
+  currentTrack = index;
+  bgm.src = playlist[index].src;
+  bgm.load();
+}
+
+function toggleBGM() {
+  if (bgmPlaying) {
+    bgm.pause();
+    bgmPlaying = false;
+    musicBtn.textContent = '🎵 播放音乐';
+  } else {
+    if (!bgm.src) loadTrack(0);
+    bgm.play().then(function() {
+      bgmPlaying = true;
+      musicBtn.textContent = '🎵 ' + playlist[currentTrack].title;
+    }).catch(function() {
+      // Browser blocked autoplay
+      bgmPlaying = false;
+      musicBtn.textContent = '🎵 播放音乐';
+    });
+  }
+}
+
+bgm.addEventListener('ended', function() {
+  currentTrack = (currentTrack + 1) % playlist.length;
+  loadTrack(currentTrack);
+  bgm.play().then(function() {
+    bgmPlaying = true;
+    musicBtn.textContent = '🎵 ' + playlist[currentTrack].title;
+  });
+});
 
 // ── Init ──
 function initGame() {
