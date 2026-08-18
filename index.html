@@ -537,7 +537,7 @@
     <p class="start-desc">交换相邻照片，凑齐3个消除得分</p>
     <div class="start-loading" id="startLoading">
       <div class="loading-spinner-start"></div>
-      <span>加载中...</span>
+      <span id="loadingText">加载中... 0%</span>
     </div>
     <button class="btn-start" id="btnStart" disabled>开始游戏</button>
   </div>
@@ -634,7 +634,7 @@ const musicBtn   = document.getElementById('musicBtn');
 bestEl.textContent = best;
 
 // ── Image preloading ──
-function preloadImages() {
+function preloadImages(onProgress) {
   return new Promise(function(resolve) {
     var loaded = 0;
     var total = photos.length;
@@ -643,10 +643,12 @@ function preloadImages() {
       var img = new Image();
       img.onload = function() {
         loaded++;
+        if (onProgress) onProgress(loaded, total);
         if (loaded >= total) resolve();
       };
       img.onerror = function() {
         loaded++;
+        if (onProgress) onProgress(loaded, total);
         if (loaded >= total) resolve();
       };
       img.src = 'photos/' + p;
@@ -1298,7 +1300,12 @@ loadingOverlayEl.style.display = 'none';
 startOverlayEl.classList.remove('hidden');
 
 var startLoadingEl = document.getElementById('startLoading');
-preloadImages().then(function() {
+var loadingTextEl = document.getElementById('loadingText');
+preloadImages(function(loaded, total) {
+  var pct = Math.round(loaded / total * 100);
+  loadingTextEl.textContent = '加载中... ' + pct + '%';
+}).then(function() {
+  loadingTextEl.textContent = '加载完成';
   startLoadingEl.style.display = 'none';
   btnStartEl.disabled = false;
   btnStartEl.textContent = '开始游戏';
