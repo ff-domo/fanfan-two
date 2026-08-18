@@ -1,0 +1,14 @@
+# Backup of original images
+photos/_originals/
+
+# Compression script
+compress_images.py
+
+# Video (not used in game)
+photos/photo-max.mp4
+
+# Node cache / junk
+你的安装目录/
+node_modules/
+package.json
+package-lock.json
