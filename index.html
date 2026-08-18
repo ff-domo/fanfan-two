@@ -215,19 +215,19 @@
 
   /* ── Elimination animation ── */
   .cell.removing {
-    animation: popOut 0.4s cubic-bezier(0.22,1,0.36,1) forwards;
+    animation: popOut 0.3s cubic-bezier(0.22,1,0.36,1) forwards;
   }
   @keyframes popOut {
-    0%   { transform: scale(1); opacity: 1; filter: brightness(1); }
-    30%  { transform: scale(1.28) rotate(5deg); opacity: 0.8; filter: brightness(1.5) saturate(1.4); }
-    100% { transform: scale(0) rotate(-15deg); opacity: 0; filter: brightness(2); }
+    0%   { transform: scale(1); opacity: 1; }
+    30%  { transform: scale(1.25) rotate(5deg); opacity: 0.85; }
+    100% { transform: scale(0) rotate(-15deg); opacity: 0; }
   }
   .cell.dropping {
-    animation: bounceIn 0.4s cubic-bezier(0.34,1.56,0.64,1) forwards;
+    animation: bounceIn 0.3s cubic-bezier(0.34,1.56,0.64,1) forwards;
   }
   @keyframes bounceIn {
-    0%   { transform: translateY(-80px) scale(0.8); opacity: 0; filter: blur(4px); }
-    60%  { transform: translateY(5px) scale(1.03); opacity: 1; filter: blur(0); }
+    0%   { transform: translateY(-80px) scale(0.8); opacity: 0; }
+    60%  { transform: translateY(4px) scale(1.02); opacity: 1; }
     100% { transform: translateY(0) scale(1); opacity: 1; }
   }
 
@@ -914,8 +914,11 @@ function animateSwap(r1, c1, r2, c2) {
     var cell2 = getCellEl(r2, c2);
     if (!cell1 || !cell2) { resolve(); return; }
 
-    var dx = (c2 - c1) * (CELL_SIZE + GAP);
-    var dy = (r2 - r1) * (CELL_SIZE + GAP);
+    // Use actual on-screen positions so the slide works on any screen size
+    var rect1 = cell1.getBoundingClientRect();
+    var rect2 = cell2.getBoundingClientRect();
+    var dx = rect2.left - rect1.left;
+    var dy = rect2.top - rect1.top;
 
     cell1.classList.add('swap-anim');
     cell2.classList.add('swap-anim');
@@ -1082,8 +1085,10 @@ function findMatches() {
 
 // ── Particle burst ──
 function spawnParticles(r, c) {
-  var cx = PAD + c * (CELL_SIZE + GAP) + CELL_SIZE / 2;
-  var cy = PAD + r * (CELL_SIZE + GAP) + CELL_SIZE / 2;
+  var cellEl = getCellEl(r, c);
+  if (!cellEl) return;
+  var cx = cellEl.offsetLeft + cellEl.offsetWidth / 2;
+  var cy = cellEl.offsetTop + cellEl.offsetHeight / 2;
   for (var i = 0; i < 8; i++) {
     var p = document.createElement('div');
     p.className = 'particle';
@@ -1155,7 +1160,10 @@ async function processMatches() {
       }
     }
 
+    // Track affected columns so only they animate on drop (cheaper + smoother)
+    var affectedCols = {};
     for (var i = 0; i < matches.length; i++) {
+      affectedCols[matches[i].c] = true;
       var el = getCellEl(matches[i].r, matches[i].c);
       if (el) {
         el.classList.add('removing');
@@ -1163,7 +1171,7 @@ async function processMatches() {
       }
     }
     showScoreFloat(pts, matches[Math.floor(matches.length / 2)]);
-    await sleep(400);
+    await sleep(300);
 
     for (var j = 0; j < matches.length; j++) {
       grid[matches[j].r][matches[j].c] = null;
@@ -1187,12 +1195,13 @@ async function processMatches() {
     renderBoard();
 
     for (var c = 0; c < COLS; c++) {
+      if (!affectedCols[c]) continue;
       for (var r = 0; r < ROWS; r++) {
         var el2 = getCellEl(r, c);
         if (el2) el2.classList.add('dropping');
       }
     }
-    await sleep(380);
+    await sleep(300);
 
     matches = findMatches();
   }
@@ -1213,8 +1222,9 @@ function showScoreFloat(pts, cell) {
   var el = document.createElement('div');
   el.className = 'score-float';
   el.textContent = '+' + pts;
-  var x = PAD + cell.c * (CELL_SIZE + GAP) + CELL_SIZE / 2;
-  var y = PAD + cell.r * (CELL_SIZE + GAP) + CELL_SIZE / 4;
+  var cellEl = getCellEl(cell.r, cell.c);
+  var x = cellEl ? cellEl.offsetLeft + cellEl.offsetWidth / 2 : 0;
+  var y = cellEl ? cellEl.offsetTop + cellEl.offsetHeight / 4 : 0;
   el.style.left = x + 'px';
   el.style.top = y + 'px';
   boardEl.appendChild(el);
